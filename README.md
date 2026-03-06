@@ -18,17 +18,18 @@ Create, search, complete, and manage your Todoist tasks — all from Claude, Gem
 
 ## ✨ Features
 
-| Category       | Tools                                                                                                 | Description                                        |
-| -------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| 📋 Tasks        | `list_tasks`, `get_task`, `create_task`, `update_task`, `complete_task`, `delete_task`, `reopen_task` | Full task CRUD with priority, due dates, labels    |
-| 🔍 Smart Search | `search_task_by_name`, `complete_task_by_name`, `delete_task_by_name`, `update_task_by_name`          | Find and operate on tasks by name (fuzzy matching) |
-| 📁 Projects     | `list_projects`, `create_project`, `update_project`, `delete_project`                                 | Manage projects                                    |
-| 📑 Sections     | `list_sections`, `create_section`, `delete_section`                                                   | Organize tasks into sections                       |
-| 🏷️ Labels       | `list_labels`, `create_label`                                                                         | Tag management                                     |
-| 💬 Comments     | `get_comments`, `create_comment`                                                                      | Task & project comments                            |
-| ⚙️ Config       | `set_api_token`, `get_current_config`                                                                 | Runtime token management                           |
+| Category       | Tools                                                                                                 | Description                                         |
+| -------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| 📋 Tasks        | `get_tasks`, `get_task`, `create_task`, `update_task`, `close_task`, `delete_task`, `reopen_task`     | Full task CRUD with priority, due dates, labels     |
+| 🚚 Move         | `move_task`, `move_task_by_name`                                                                      | **Move tasks across projects, sections, parents**   |
+| 🔍 Smart Search | `search_task_by_name`, `complete_task_by_name`, `delete_task_by_name`, `update_task_by_name`          | Find and operate on tasks by name (fuzzy matching)  |
+| 📁 Projects     | `list_projects`, `create_project`, `update_project`, `delete_project`, `get_project_overview`         | Manage projects + full structure overview           |
+| 📑 Sections     | `list_sections`, `create_section`, `update_section`, `delete_section`                                 | Organize and rename sections                        |
+| 🏷️ Labels       | `list_labels`, `create_label`                                                                         | Tag management                                      |
+| 💬 Comments     | `get_comments`, `create_comment`                                                                      | Task & project comments                             |
+| ⚙️ Config       | `set_api_token`, `get_current_config`                                                                 | Runtime token management                            |
 
-**24 tools total** — the most comprehensive Todoist MCP server available.
+**27 tools total** — the most comprehensive Todoist MCP server available.
 
 ---
 
@@ -223,8 +224,10 @@ Once configured, ask your AI agent:
 - *"Show me my tasks for today"*
 - *"Create a task: Buy groceries, due tomorrow, priority 2"*
 - *"Complete the task about groceries"*
+- *"Move the grocery task to my Shopping project"*
 - *"Search for tasks related to meeting"*
 - *"List all my projects"*
+- *"Show me the full project overview with sections"*
 - *"Add a comment to my latest task"*
 
 ---

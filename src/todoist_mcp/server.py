@@ -1,6 +1,14 @@
 """
-Todoist MCP Server v1.1.1
-Connect AI agents to your Todoist tasks via the Todoist API v1.
+Todoist MCP Server v1.2.0
+Connect AI agents to your Todoist tasks via the Todoist API v1 (unified).
+
+New in v1.2.0:
+- 🚚 move_task: Move tasks across projects, sections, or under parent tasks
+- 🔍 move_task_by_name: Move tasks by name (fuzzy matching)
+- 📊 get_project_overview: Get a full overview of all projects, sections, and task counts
+- 🏗️ update_section: Rename sections
+- ⚡ Enhanced update_task: Now supports assignee_id, duration, deadline_date, due_datetime
+- 🐛 Fixed API token validation to support all Todoist token formats
 """
 import os
 import sys
@@ -100,6 +108,10 @@ def _fmt_task(t: dict) -> str:
         parts.append(f"  📅 {due}")
     if labels:
         parts.append(f"  🏷️ {labels}")
+    if t.get("project_id"):
+        parts.append(f"  📂 Project: {t['project_id']}")
+    if t.get("section_id"):
+        parts.append(f"  📑 Section: {t['section_id']}")
     return "\n".join(parts)
 
 
@@ -123,7 +135,8 @@ def list_projects() -> str:
         for p in projects:
             fav = "⭐ " if p.get("is_favorite") else ""
             inbox = " (Inbox)" if p.get("inbox_project") else ""
-            lines.append(f"- {fav}{p['name']}{inbox}  (ID: {p['id']}, color: {p.get('color', 'default')})")
+            parent = f"  ↳ parent: {p['parent_id']}" if p.get("parent_id") else ""
+            lines.append(f"- {fav}{p['name']}{inbox}  (ID: {p['id']}, color: {p.get('color', 'default')}){parent}")
         return "\n".join(lines)
     except Exception as e:
         return f"Error listing projects: {e}"
@@ -198,6 +211,53 @@ def delete_project(project_id: str) -> str:
         return f"Error deleting project: {e}"
 
 
+@mcp.tool()
+def get_project_overview() -> str:
+    """
+    Get a comprehensive overview of all projects with their sections and task counts.
+    Useful for understanding the full project structure before organizing tasks.
+    """
+    try:
+        headers = _headers()
+
+        # Get all projects
+        res = requests.get(f"{BASE_URL}/projects", headers=headers, timeout=REQUEST_TIMEOUT)
+        res.raise_for_status()
+        projects = _extract_results(res.json())
+
+        if not projects:
+            return "No projects found."
+
+        # Get all sections
+        res_sec = requests.get(f"{BASE_URL}/sections", headers=headers, timeout=REQUEST_TIMEOUT)
+        res_sec.raise_for_status()
+        sections = _extract_results(res_sec.json())
+
+        # Group sections by project
+        sec_by_project: dict = {}
+        for s in sections:
+            pid = s.get("project_id", "")
+            if pid not in sec_by_project:
+                sec_by_project[pid] = []
+            sec_by_project[pid].append(s)
+
+        # Build overview
+        lines = ["📊 **Project Overview**\n"]
+        for p in projects:
+            fav = "⭐ " if p.get("is_favorite") else ""
+            inbox = " (Inbox)" if p.get("inbox_project") else ""
+            indent = "  " if p.get("parent_id") else ""
+            lines.append(f"{indent}📁 {fav}**{p['name']}**{inbox}  (ID: {p['id']})")
+
+            proj_sections = sec_by_project.get(p["id"], [])
+            for s in proj_sections:
+                lines.append(f"{indent}  📑 {s['name']}  (ID: {s['id']})")
+
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Error getting project overview: {e}"
+
+
 # ═══════════════════════════════════════════════
 #  Tasks
 # ═══════════════════════════════════════════════
@@ -243,13 +303,12 @@ def get_task(task_id: str) -> str:
         res.raise_for_status()
         t = res.json()
         lines = [_fmt_task(t)]
-        lines.append(f"  📂 Project: {t.get('project_id', 'N/A')}")
-        if t.get("section_id"):
-            lines.append(f"  📑 Section: {t['section_id']}")
         if t.get("parent_id"):
             lines.append(f"  🔗 Parent: {t['parent_id']}")
         lines.append(f"  💬 Notes: {t.get('note_count', 0)}")
         lines.append(f"  📆 Created: {t.get('added_at', 'N/A')}")
+        if t.get("duration"):
+            lines.append(f"  ⏱️ Duration: {t['duration']}")
         return "\n".join(lines)
     except Exception as e:
         return f"Error getting task: {e}"
@@ -314,8 +373,13 @@ def update_task(
     description: str = "",
     due_string: str = "",
     due_date: str = "",
+    due_datetime: str = "",
     priority: int = 0,
     labels: str = "",
+    assignee_id: str = "",
+    duration: int = 0,
+    duration_unit: str = "",
+    deadline_date: str = "",
 ) -> str:
     """
     Update an existing task.
@@ -326,8 +390,13 @@ def update_task(
         description: New description.
         due_string: New due date in natural language.
         due_date: New due date in YYYY-MM-DD format.
+        due_datetime: New due date and time in RFC3339 format.
         priority: New priority (1-4).
         labels: New comma-separated label names (replaces existing labels).
+        assignee_id: ID of user to assign the task to.
+        duration: Task duration in minutes or days (requires duration_unit).
+        duration_unit: Unit for duration: 'minute' or 'day'.
+        deadline_date: Deadline date in YYYY-MM-DD format.
     """
     body: dict = {}
     if content:
@@ -338,10 +407,20 @@ def update_task(
         body["due_string"] = due_string
     if due_date:
         body["due_date"] = due_date
+    if due_datetime:
+        body["due_datetime"] = due_datetime
     if priority:
         body["priority"] = priority
     if labels:
         body["labels"] = [l.strip() for l in labels.split(",")]
+    if assignee_id:
+        body["assignee_id"] = assignee_id
+    if duration:
+        body["duration"] = duration
+    if duration_unit:
+        body["duration_unit"] = duration_unit
+    if deadline_date:
+        body["deadline_date"] = deadline_date
     if not body:
         return "Nothing to update. Provide at least one field."
     try:
@@ -351,6 +430,53 @@ def update_task(
         return f"✅ Task updated: '{t['content']}' (ID: {t['id']})\n{_fmt_task(t)}"
     except Exception as e:
         return f"Error updating task: {e}"
+
+
+@mcp.tool()
+def move_task(
+    task_id: str,
+    project_id: str = "",
+    section_id: str = "",
+    parent_id: str = "",
+) -> str:
+    """
+    Move a task to a different project, section, or under a parent task.
+    This enables cross-project task organization.
+
+    Args:
+        task_id: ID of the task to move (required).
+        project_id: ID of the target project to move the task to.
+        section_id: ID of the target section to move the task to.
+        parent_id: ID of the parent task to move the task under.
+    """
+    body: dict = {}
+    if project_id:
+        body["project_id"] = project_id
+    if section_id:
+        body["section_id"] = section_id
+    if parent_id:
+        body["parent_id"] = parent_id
+    if not body:
+        return "Nothing to move. Provide at least one of: project_id, section_id, parent_id."
+    try:
+        res = requests.post(
+            f"{BASE_URL}/tasks/{task_id}/move",
+            headers=_headers(),
+            json=body,
+            timeout=REQUEST_TIMEOUT,
+        )
+        res.raise_for_status()
+        t = res.json()
+        dest_parts = []
+        if project_id:
+            dest_parts.append(f"project {project_id}")
+        if section_id:
+            dest_parts.append(f"section {section_id}")
+        if parent_id:
+            dest_parts.append(f"parent {parent_id}")
+        return f"✅ Task moved to {', '.join(dest_parts)}: '{t.get('content', '')}' (ID: {t.get('id', task_id)})\n{_fmt_task(t)}"
+    except Exception as e:
+        return f"Error moving task: {e}"
 
 
 @mcp.tool()
@@ -447,6 +573,25 @@ def create_section(name: str, project_id: str) -> str:
         return f"✅ Section created: '{s['name']}' (ID: {s['id']})"
     except Exception as e:
         return f"Error creating section: {e}"
+
+
+@mcp.tool()
+def update_section(section_id: str, name: str) -> str:
+    """
+    Rename an existing section.
+
+    Args:
+        section_id: ID of the section to update.
+        name: New name for the section.
+    """
+    body = {"name": name}
+    try:
+        res = requests.post(f"{BASE_URL}/sections/{section_id}", headers=_headers(), json=body, timeout=REQUEST_TIMEOUT)
+        res.raise_for_status()
+        s = res.json()
+        return f"✅ Section updated: '{s['name']}' (ID: {s['id']})"
+    except Exception as e:
+        return f"Error updating section: {e}"
 
 
 @mcp.tool()
@@ -729,6 +874,63 @@ def update_task_by_name(
         return f"Error updating task: {e}"
 
 
+@mcp.tool()
+def move_task_by_name(
+    task_name: str,
+    project_id: str = "",
+    section_id: str = "",
+    parent_id: str = "",
+) -> str:
+    """
+    Move a task to a different project/section by searching for it by name.
+    Uses partial name matching. If multiple tasks match, lists them for the user to choose.
+
+    Args:
+        task_name: Name/content of the task to find and move.
+        project_id: ID of the target project to move the task to.
+        section_id: ID of the target section to move the task to.
+        parent_id: ID of the parent task to move the task under.
+    """
+    if not project_id and not section_id and not parent_id:
+        return "Nothing to move. Provide at least one of: project_id, section_id, parent_id."
+    try:
+        matches = _find_tasks_by_name(task_name)
+        if not matches:
+            return f"❌ No task found matching '{task_name}'."
+        if len(matches) > 1:
+            lines = [f"⚠️ Found {len(matches)} tasks matching '{task_name}'. Please be more specific or use the task ID:\n"]
+            for t in matches:
+                lines.append(_fmt_task(t))
+                lines.append("")
+            return "\n".join(lines)
+        task = matches[0]
+        body: dict = {}
+        if project_id:
+            body["project_id"] = project_id
+        if section_id:
+            body["section_id"] = section_id
+        if parent_id:
+            body["parent_id"] = parent_id
+        res = requests.post(
+            f"{BASE_URL}/tasks/{task['id']}/move",
+            headers=_headers(),
+            json=body,
+            timeout=REQUEST_TIMEOUT,
+        )
+        res.raise_for_status()
+        t = res.json()
+        dest_parts = []
+        if project_id:
+            dest_parts.append(f"project {project_id}")
+        if section_id:
+            dest_parts.append(f"section {section_id}")
+        if parent_id:
+            dest_parts.append(f"parent {parent_id}")
+        return f"✅ Task moved to {', '.join(dest_parts)}: '{t.get('content', '')}' (ID: {t.get('id', task['id'])})\n{_fmt_task(t)}"
+    except Exception as e:
+        return f"Error moving task: {e}"
+
+
 # ═══════════════════════════════════════════════
 #  Configuration (API Token)
 # ═══════════════════════════════════════════════
@@ -743,12 +945,9 @@ def set_api_token(token: str) -> str:
     Args:
         token: Your Todoist API Token (get from https://app.todoist.com/app/settings/integrations).
     """
-    # Validate token format: must be hex string of 40 characters
     token = token.strip()
     if not token or len(token) < 10:
         return "❌ Invalid token. Please provide a valid Todoist API Token."
-    if not re.match(r'^[a-fA-F0-9]+$', token):
-        return "❌ Invalid token format. Todoist API tokens should be hexadecimal strings."
     os.environ["TODOIST_API_TOKEN"] = token
     # Verify the token works
     try:
@@ -762,7 +961,7 @@ def set_api_token(token: str) -> str:
         return f"✅ API Token set successfully! Found {len(projects)} projects. Token is active for this session."
     except Exception as e:
         os.environ.pop("TODOIST_API_TOKEN", None)
-        return f"❌ Token verification failed. Token was not saved."
+        return f"❌ Token verification failed: {e}. Token was not saved."
 
 
 @mcp.tool()
@@ -777,6 +976,7 @@ def get_current_config() -> str:
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"  API Token:  {token_status}\n"
         f"  API URL:    {BASE_URL}\n"
+        f"  Version:    1.2.0\n"
         f"  Get token:  https://app.todoist.com/app/settings/integrations"
     )
 

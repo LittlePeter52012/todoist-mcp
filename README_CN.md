@@ -18,17 +18,18 @@
 
 ## ✨ 功能一览
 
-| 类别       | 工具                                                                                                  | 说明                                           |
-| ---------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| 📋 任务     | `list_tasks`, `get_task`, `create_task`, `update_task`, `complete_task`, `delete_task`, `reopen_task` | 完整的任务增删改查，支持优先级、截止日期、标签 |
-| 🔍 智能搜索 | `search_task_by_name`, `complete_task_by_name`, `delete_task_by_name`, `update_task_by_name`          | 按名称模糊匹配查找并操作任务                   |
-| 📁 项目     | `list_projects`, `create_project`, `update_project`, `delete_project`                                 | 项目管理                                       |
-| 📑 分区     | `list_sections`, `create_section`, `delete_section`                                                   | 将任务组织到分区中                             |
-| 🏷️ 标签     | `list_labels`, `create_label`                                                                         | 标签管理                                       |
-| 💬 评论     | `get_comments`, `create_comment`                                                                      | 任务和项目评论                                 |
-| ⚙️ 配置     | `set_api_token`, `get_current_config`                                                                 | 运行时 Token 管理                              |
+| 类别       | 工具                                                                                                  | 说明                                             |
+| ---------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| 📋 任务     | `get_tasks`, `get_task`, `create_task`, `update_task`, `close_task`, `delete_task`, `reopen_task`     | 完整的任务增删改查，支持优先级、截止日期、标签   |
+| � 移动     | `move_task`, `move_task_by_name`                                                                      | **跨项目、分区移动任务**                         |
+| �🔍 智能搜索 | `search_task_by_name`, `complete_task_by_name`, `delete_task_by_name`, `update_task_by_name`          | 按名称模糊匹配查找并操作任务                     |
+| 📁 项目     | `list_projects`, `create_project`, `update_project`, `delete_project`, `get_project_overview`         | 项目管理 + 完整结构概览                          |
+| 📑 分区     | `list_sections`, `create_section`, `update_section`, `delete_section`                                 | 创建、重命名和管理分区                           |
+| 🏷️ 标签     | `list_labels`, `create_label`                                                                         | 标签管理                                         |
+| 💬 评论     | `get_comments`, `create_comment`                                                                      | 任务和项目评论                                   |
+| ⚙️ 配置     | `set_api_token`, `get_current_config`                                                                 | 运行时 Token 管理                                |
 
-**共 24 个工具** — 功能最全面的 Todoist MCP 服务器。
+**共 27 个工具** — 功能最全面的 Todoist MCP 服务器。
 
 ---
 
@@ -223,8 +224,10 @@ pip install todoist-mcp-helper
 - *"显示我今天的任务"*
 - *"创建一个任务：买菜，明天截止，优先级 2"*
 - *"完成那个关于买菜的任务"*
+- *"把买菜的任务移到'生活'项目里"*
 - *"搜索和会议相关的任务"*
 - *"列出我所有的项目"*
+- *"显示完整的项目结构概览"*
 - *"给最新的任务加个评论"*
 
 ---
